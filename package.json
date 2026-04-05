@@ -1,0 +1,60 @@
+{
+  "name": "@terranc/ccsc",
+  "version": "1.0.2",
+  "description": "Cross-platform CLI tool for CC Switch provider selection with interactive UI",
+  "type": "module",
+  "bin": {
+    "ccsc": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "cc-switch",
+    "claude",
+    "claude-code",
+    "cli",
+    "provider",
+    "anthropic",
+    "ai",
+    "llm"
+  ],
+  "author": "TerranChao",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/terranc/ccsc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/terranc/ccsc/issues"
+  },
+  "homepage": "https://github.com/terranc/ccsc#readme",
+  "dependencies": {
+    "better-sqlite3": "^11.9.1",
+    "commander": "^13.1.0",
+    "ink": "^6.8.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.14",
+    "@types/react": "^19.2.14",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ]
+}
