@@ -130,7 +130,7 @@ set CC_SWITCH_DB_PATH=C:\custom\path\cc-switch.db
 
 ```bash
 # 克隆仓库
-git clone https://github.com/TerranChao/ccsc.git
+git clone https://github.com/terranc/ccsc.git
 cd ccsc
 
 # 安装依赖
