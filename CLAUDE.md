@@ -67,3 +67,9 @@ ccsc --cli /path/to/custom-cli
 - **Env Merging**: `settings.ts` merges global `common_config_claude` env vars with provider-specific env vars
 - **History**: Simple append-only file with timestamps, parsed and sorted in-memory
 - **UI**: Ink React components with keyboard navigation (↑/↓, PgUp/PgDn, Enter, Esc, search)
+
+## Version Release Preference
+<!-- github-push-and-release: simple -->
+This project uses simple mode: CHANGELOG + commit + push, no git tag, no GitHub release.
+Auto-detected: npm CLI package
+To force a full release, use `/github-push-and-release release`.
