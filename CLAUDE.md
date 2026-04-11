@@ -4,83 +4,66 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-Claude environment configuration repository. Dynamically reads provider configurations from CC Switch SQLite database and provides an interactive provider selection interface.
-
-## Usage
-
-```bash
-# Activate the ccs command
-source ~/.claude-envs/activate.sh
-
-# Interactive selection (uses fzf)
-ccs
-# Shows provider list with preview, last used provider at top
-# Select with arrow keys, press Enter to start
-
-# Direct selection by name
-ccs jdcloud
-# Starts Claude with the specified provider
-
-# Pass additional arguments to Claude
-ccs jdcloud --continue
-```
+CCSC (CC Switch CLI) - A cross-platform CLI tool for selecting Claude Code providers from CC Switch database. Creates isolated provider-specific settings without modifying global `~/.claude/settings.json`.
 
 ## Commands
 
-- `ccs` — Interactive provider selection with fzf
-- `ccs <provider_name>` — Direct start with specified provider
-- `ccs <provider_name> [claude-args...]` — Pass additional arguments to Claude
+```bash
+# Build
+npm run build          # Compile TypeScript to dist/
+
+# Development
+npm run dev            # Watch mode for TypeScript
+
+# Local testing
+node dist/index.js     # Run directly
+
+# Global link for testing
+npm link               # Create global ccsc command
+npm unlink -g @terranc/ccsc  # Remove global link
+```
 
 ## Architecture
 
 ```
-~/.claude-envs/
-├── ccs               # Main entry script
-├── activate.sh       # Creates ccs alias
-└── .last_providers   # Usage history (auto-generated)
-
-~/.cc-switch/
-└── cc-switch.db      # CC Switch database (read-only)
+src/
+├── index.ts       # Entry point, Commander CLI setup, main orchestration
+├── db.ts          # SQLite queries to CC Switch database
+├── history.ts     # Usage history persistence (~/.ccsc-history)
+├── settings.ts    # Provider-specific settings file management
+├── types.ts       # TypeScript interfaces (Provider, HistoryEntry)
+└── ui/
+    └── App.tsx    # Ink React component for interactive selection
 ```
 
-## Data Source
+### Data Flow
 
-Provider configurations are read from `cc-switch.db` (CC Switch SQLite database):
+1. `db.ts` reads providers from `~/.cc-switch/cc-switch.db` (SQLite)
+2. `history.ts` sorts providers by recent usage
+3. `ui/App.tsx` renders interactive selection UI (Ink + React)
+4. `settings.ts` creates isolated `~/.claude/ccsc-{slug}.settings.json` with merged env vars
+5. `index.ts` spawns Claude CLI with `--settings` flag pointing to the generated file
 
-- **Table**: `providers`
-- **Filter**: `app_type='claude'`
-- **Config**: `settings_config.env` JSON field contains environment variables
+### Environment Variables
 
-## Dependencies
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `CC_CLI_PATH` | Custom Claude CLI binary | `claude` |
+| `CC_SWITCH_DB_PATH` | Full path to database file | `~/.cc-switch/cc-switch.db` |
+| `CC_SWITCH_HOME` | Custom config directory | `~/.cc-switch` |
 
-- `sqlite3` — Database queries
-- `fzf` — Interactive selection
-- `jq` — JSON parsing
+### CLI Option
 
-## Trellis Workflow System
+Use `--cli` option to specify CLI tool (overrides `CC_CLI_PATH` env):
 
-`.trellis/` contains an AI development workflow:
+```bash
+ccsc --cli happy
+ccsc --cli /path/to/custom-cli
+```
 
-- `workflow.md` — Session start/end process, development flow
-- `spec/` — Frontend/backend guidelines
-- `workspace/` — Per-developer workspaces
-- `tasks/` — Task tracking
+## Key Implementation Details
 
-**Session Start**: Run `/trellis:start` to initialize developer identity and context.
-
-## Hooks
-
-`.claude/hooks/` contains Python scripts:
-- `session-start.py` — Session initialization
-- `inject-subagent-context.py` — Subagent context injection
-- `ralph-loop.py` — Subagent loop detection
-
-## Agents
-
-`.claude/agents/` defines subagent types:
-- `plan.md`, `implement.md`, `research.md`, `dispatch.md`, `debug.md`, `check.md`
-
-## Version Release Preference
-<!-- github-push-and-release: simple -->
-This project uses simple mode: CHANGELOG + commit + push, no git tag, no GitHub release.
-To force a full release, use `/github-push-and-release release`.
+- **Settings Isolation**: Each provider gets its own settings file (`ccsc-{slug}.settings.json`), never modifies `~/.claude/settings.json`
+- **Env Merging**: `settings.ts` merges global `common_config_claude` env vars with provider-specific env vars
+- **History**: Simple append-only file with timestamps, parsed and sorted in-memory
+- **UI**: Ink React components with keyboard navigation (↑/↓, PgUp/PgDn, Enter, Esc, search)

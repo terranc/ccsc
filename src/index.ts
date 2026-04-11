@@ -17,6 +17,7 @@ program
   .description('Cross-platform CLI for CC Switch provider selection')
   .version('1.0.0')
   .option('--clear', 'Clear all CCSC-generated settings files')
+  .option('--cli <name>', 'Specify CLI tool to use (overrides CC_CLI_PATH env)')
   .allowUnknownOption()
   .allowExcessArguments()
   .passThroughOptions()
@@ -33,8 +34,12 @@ program
         process.exit(0);
       }
 
-      const rawArgs = process.argv.slice(2).filter((arg) => arg !== '--clear');
-      await main(rawArgs);
+      // Extract --cli option and remaining args
+      const cliOverride = options.cli;
+      const rawArgs = process.argv.slice(2).filter(
+        (arg) => arg !== '--clear' && !arg.startsWith('--cli') && arg !== cliOverride
+      );
+      await main(rawArgs, cliOverride);
     } catch (error) {
       console.error(
         'Error:',
@@ -46,7 +51,7 @@ program
 
 program.parse();
 
-async function main(claudeArgs: string[]): Promise<void> {
+async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   if (!isDbAvailable()) {
     console.error('CC Switch database not found.');
     console.error(
@@ -96,14 +101,18 @@ async function main(claudeArgs: string[]): Promise<void> {
   // Spawn claude process
   console.log(`🚀 Starting Claude with provider: ${selectedProvider.name}`);
 
-  const child = spawn('claude', finalArgs, {
+  // Priority: --cli option > CC_CLI_PATH env var > 'claude' default
+  const claudeBin = cliOverride || process.env.CC_CLI_PATH || 'claude';
+
+  const child = spawn(claudeBin, finalArgs, {
     stdio: 'inherit',
     shell: process.platform === 'win32',
   });
 
   child.on('error', (err) => {
-    console.error('Failed to start claude:', err.message);
+    console.error(`Failed to start ${claudeBin}:`, err.message);
     console.error('Please ensure Claude CLI is installed and in your PATH.');
+    console.error('You can set CC_CLI_PATH environment variable or use --cli option to specify a custom CLI.');
     process.exit(1);
   });
 

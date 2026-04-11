@@ -98,18 +98,31 @@ ccsc --help
 ccsc --version
 ```
 
-## 数据源
+## 环境变量
 
-服务商配置从 CC Switch 的 SQLite 数据库读取。
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `CC_CLI_PATH` | Claude CLI 可执行文件路径 | `claude` |
+| `CC_SWITCH_DB_PATH` | CC Switch 数据库完整路径 | `~/.cc-switch/cc-switch.db` |
+| `CC_SWITCH_HOME` | CC Switch 配置目录 | `~/.cc-switch` |
 
-**默认路径**：`~/.cc-switch/cc-switch.db`
+### 自定义 Claude CLI
 
-**通过环境变量自定义路径**：
+你可以通过环境变量或命令行参数指定使用的 CLI：
 
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `CC_SWITCH_DB_PATH` | 数据库文件完整路径 | `/custom/path/cc-switch.db` |
-| `CC_SWITCH_HOME` | 自定义配置目录 | `/custom/config` |
+```bash
+# 方式一：环境变量
+export CC_CLI_PATH=/path/to/happy
+ccsc
+
+# 方式二：命令行参数（优先级更高）
+ccsc --cli happy
+ccsc --cli /path/to/custom-cli
+```
+
+命令行参数 `--cli` 优先级高于环境变量 `CC_CLI_PATH`。
+
+### 数据库路径配置
 
 ```bash
 # macOS / Linux
