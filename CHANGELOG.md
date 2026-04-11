@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepchangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-04-11
+
+### Added
+- `--cli <name>` option to specify CLI tool (overrides `CC_CLI_PATH` env var)
+
+### Changed
+- Renamed environment variable from `CLAUDE_CODE_PATH` to `CC_CLI_PATH`
+- Priority for CLI selection: `--cli` option > `CC_CLI_PATH` env > `claude` default
+
 ## [1.0.2] - 2026-04-06
 
 ### Added
