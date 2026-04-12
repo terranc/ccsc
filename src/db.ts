@@ -1,4 +1,5 @@
-import Database from 'better-sqlite3';
+import NodeSqlite from 'node-sqlite3-wasm';
+const { Database } = NodeSqlite;
 import path from 'path';
 import os from 'os';
 import { existsSync } from 'fs';
@@ -44,11 +45,11 @@ function getCommonConfigEnv(): Record<string, string> {
   const dbPath = getDbPath();
   if (!existsSync(dbPath)) return {};
 
-  const db = new Database(dbPath, { readonly: true });
+  const db = new Database(dbPath);
   try {
-    const row = db
-      .prepare("SELECT value FROM settings WHERE key = 'common_config_claude'")
-      .get() as { value: string } | undefined;
+    const row = db.get(
+      "SELECT value FROM settings WHERE key = 'common_config_claude'"
+    ) as { value: string } | undefined;
 
     if (!row) return {};
 
@@ -68,11 +69,12 @@ export function getCommonConfig(appType: string = 'claude'): Record<string, unkn
   const dbPath = getDbPath();
   if (!existsSync(dbPath)) return {};
 
-  const db = new Database(dbPath, { readonly: true });
+  const db = new Database(dbPath);
   try {
-    const row = db
-      .prepare("SELECT value FROM settings WHERE key = ?")
-      .get(`common_config_${appType}`) as { value: string } | undefined;
+    const row = db.get(
+      "SELECT value FROM settings WHERE key = ?",
+      [`common_config_${appType}`]
+    ) as { value: string } | undefined;
 
     if (!row) return {};
     return JSON.parse(row.value);
@@ -96,18 +98,16 @@ export function getProviders(): Provider[] {
     );
   }
 
-  const db = new Database(dbPath, { readonly: true });
+  const db = new Database(dbPath);
   const commonEnv = getCommonConfigEnv();
 
   try {
-    const rows = db
-      .prepare(
-        `SELECT id, name, settings_config
-         FROM providers
-         WHERE app_type = 'claude'
-         ORDER BY name`
-      )
-      .all() as ProviderRow[];
+    const rows = db.all(
+      `SELECT id, name, settings_config
+       FROM providers
+       WHERE app_type = 'claude'
+       ORDER BY name`
+    ) as unknown as ProviderRow[];
 
     return rows.map((row) => parseProvider(row, commonEnv));
   } finally {
