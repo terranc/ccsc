@@ -1,6 +1,6 @@
 {
   "name": "@terranc/ccsc",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Cross-platform CLI tool for CC Switch provider selection with interactive UI",
   "type": "module",
   "bin": {
