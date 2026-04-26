@@ -3,6 +3,28 @@ import { Box, Text, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { Provider } from '../types.js';
 
+/**
+ * Mask sensitive values for display
+ * Shows first 4 + **** + last 4 characters
+ */
+function maskSensitiveValue(value: string | undefined, key: string): string {
+  const sensitiveKeys = ['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY'];
+
+  if (!value) {
+    return '';
+  }
+
+  if (!sensitiveKeys.includes(key)) {
+    return value;
+  }
+
+  if (value.length < 8) {
+    return '****';
+  }
+
+  return `${value.slice(0, 4)}****${value.slice(-4)}`;
+}
+
 interface ProviderPreviewProps {
   provider: Provider | undefined;
 }
@@ -32,7 +54,7 @@ function ProviderPreview({ provider }: ProviderPreviewProps) {
           <Box key={key}>
             <Text color="yellow">{key}</Text>
             <Text>: </Text>
-            <Text>{provider.envVars[key]}</Text>
+            <Text>{maskSensitiveValue(provider.envVars[key], key)}</Text>
           </Box>
         ))
       )}
