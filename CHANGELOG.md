@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepchangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-05-07
+
+### Fixed
+- Resolve claude binary via clean login shell to avoid version manager PATH pollution
+- Spawn claude through interactive shell so MCP child processes can find `node` dependencies
+- Read version from package.json instead of hardcoded value
+
 ## [1.0.7] - 2026-05-06
 
 ### Fixed

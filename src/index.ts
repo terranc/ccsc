@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import { spawn, execSync } from 'child_process';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { render } from 'ink';
 import React from 'react';
 import { Command } from 'commander';
@@ -10,12 +13,15 @@ import { loadHistory, saveToHistory, sortByHistory } from './history.js';
 import { createProviderSettings, clearAllCcscSettings } from './settings.js';
 import type { Provider } from './types.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
+
 const program = new Command();
 
 program
   .name('ccsc')
   .description('Cross-platform CLI for CC Switch provider selection')
-  .version('1.0.0')
+  .version(pkg.version)
   .option('--clear', 'Clear all CCSC-generated settings files')
   .option('--cli <name>', 'Specify CLI tool to use (overrides CC_CLI_PATH env)')
   .allowUnknownOption()
