@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from 'child_process';
-import path from 'path';
+import { spawn, execSync } from 'child_process';
 import { render } from 'ink';
 import React from 'react';
 import { Command } from 'commander';
@@ -105,21 +104,47 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   // Priority: --cli option > CC_CLI_PATH env var > 'claude' default
   const claudeBin = cliOverride || process.env.CC_CLI_PATH || 'claude';
 
-  // Strip volta-injected paths from PATH to avoid spawning older claude version
-  // Volta injects paths like ~/.volta/tools/image/node/<version>/bin at PATH head
-  const cleanPath = process.env.PATH
-    ?.split(path.delimiter)
-    .filter((p) => !p.includes('/.volta/tools/image/'))
-    .join(path.delimiter);
+  // Spawn through the user's interactive shell (`$SHELL -i -c`) so that:
+  // 1. PATH and rc-file tooling load as if the user typed the command themselves
+  // 2. Child processes (MCP servers that need `node`/`npx`) find their deps
+  //
+  // Problem: version managers (volta/nvm/asdf) can inject shim paths that shadow
+  // the user's intended `claude` binary. We solve this by resolving `claude` to
+  // its canonical path via the user's LOGIN shell (which reflects their intended
+  // PATH without version-manager injection from the current process tree), then
+  // spawning that absolute path inside an interactive shell (so children still
+  // get the full environment).
+  const userShell = process.env.SHELL;
 
-  const child = spawn(claudeBin, finalArgs, {
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-    env: {
-      ...process.env,
-      ...(cleanPath && { PATH: cleanPath }),
-    },
-  });
+  // Resolve claude to absolute path: start a clean login shell (env -i strips
+  // inherited PATH pollution from version managers) and let it rebuild PATH
+  // from rc files, then `which` the binary. This finds the claude the user
+  // actually intends to run, regardless of what ccsc's own process tree injected.
+  let resolvedBin = claudeBin;
+  if (userShell && !claudeBin.includes('/')) {
+    try {
+      const result = execSync(
+        `env -i HOME="${process.env.HOME}" SHELL="${userShell}" TERM="${process.env.TERM || 'xterm-256color'}" ${userShell} -l -i -c 'which ${claudeBin}'`,
+        { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+      if (result && !result.includes('not found')) {
+        resolvedBin = result;
+      }
+    } catch {
+      // Fall through with original name
+    }
+  }
+
+  const child = userShell
+    ? spawn(
+        userShell,
+        ['-i', '-c', 'exec "$@"', 'ccsc', resolvedBin, ...finalArgs],
+        { stdio: 'inherit' }
+      )
+    : spawn(resolvedBin, finalArgs, {
+        stdio: 'inherit',
+        shell: process.platform === 'win32',
+      });
 
   child.on('error', (err) => {
     console.error(`Failed to start ${claudeBin}:`, err.message);
