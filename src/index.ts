@@ -84,6 +84,14 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
       React.createElement(App, {
         providers: sortedProviders,
         onSelect: (provider: Provider) => {
+          // Restore stdin from Ink's raw mode BEFORE unmounting.
+          // Ink's useInput hook sets stdin to raw mode for keyboard navigation,
+          // but unmount() doesn't restore it. If we wait until after unmount,
+          // the timing is unreliable and the child process may inherit a raw
+          // stdin, causing input to appear frozen or extremely slow.
+          if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+            process.stdin.setRawMode(false);
+          }
           unmount();
           resolve(provider);
         },
@@ -110,7 +118,7 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   // Priority: --cli option > CC_CLI_PATH env var > 'claude' default
   const claudeBin = cliOverride || process.env.CC_CLI_PATH || 'claude';
 
-  // Spawn through the user's interactive shell (`$SHELL -i -c`) so that:
+  // Spawn through the user's login shell (`$SHELL -l -c`) so that:
   // 1. PATH and rc-file tooling load as if the user typed the command themselves
   // 2. Child processes (MCP servers that need `node`/`npx`) find their deps
   //
@@ -118,8 +126,12 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   // the user's intended `claude` binary. We solve this by resolving `claude` to
   // its canonical path via the user's LOGIN shell (which reflects their intended
   // PATH without version-manager injection from the current process tree), then
-  // spawning that absolute path inside an interactive shell (so children still
+  // spawning that absolute path inside a login shell (so children still
   // get the full environment).
+  //
+  // Note: We use `-l` (login) instead of `-i` (interactive) because interactive
+  // mode causes shells to read from /dev/tty directly, breaking stdin for
+  // Claude Code and making the CLI unresponsive.
   const userShell = process.env.SHELL;
 
   // Resolve claude to absolute path: start a clean login shell (env -i strips
@@ -130,7 +142,7 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   if (userShell && !claudeBin.includes('/')) {
     try {
       const result = execSync(
-        `env -i HOME="${process.env.HOME}" SHELL="${userShell}" TERM="${process.env.TERM || 'xterm-256color'}" ${userShell} -l -i -c 'which ${claudeBin}'`,
+        `env -i HOME="${process.env.HOME}" SHELL="${userShell}" TERM="${process.env.TERM || 'xterm-256color'}" ${userShell} -l -c 'which ${claudeBin}'`,
         { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
       ).trim();
       if (result && !result.includes('not found')) {
@@ -144,7 +156,7 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   const child = userShell
     ? spawn(
         userShell,
-        ['-i', '-c', 'exec "$@"', 'ccsc', resolvedBin, ...finalArgs],
+        ['-l', '-c', 'exec "$@"', 'ccsc', resolvedBin, ...finalArgs],
         { stdio: 'inherit' }
       )
     : spawn(resolvedBin, finalArgs, {
