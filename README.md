@@ -1,85 +1,86 @@
-# CCSC - CC Switch 跨平台 CLI 工具
+# CCSC - CC Switch CLI Tool
 
-方便的多 Claude Code 启动器，从 [CC Switch](https://github.com/farion1231/cc-switch) 中选择 Claude 服务提供商，随时切换。
+[中文](README.zh-CN.md)
 
-## 为什么需要这个项目？
+A convenient multi-provider Claude Code launcher. Select your Claude service provider from [CC Switch](https://github.com/farion1231/cc-switch) and switch on the fly.
 
-作为 CC Switch 的用户，我管理着多个 Claude 服务提供商（Anthropic、国产模型等），经常需要在不同的项目中切换不同的服务商。但 CC Switch 的工作方式是修改 `~/.claude/settings.json`，这带来了两个问题：
+## Why this project?
 
-1. **影响已运行的 Claude 会话** - 当你在 CC Switch 中切换服务商时，所有正在运行的 Claude 实例也会跟着切换，可能导致意外行为
-2. **仅支持全局作用域** - 所有 Claude 会话共享相同的环境变量，难以同时使用不同的服务商
+As a CC Switch user, I manage multiple Claude service providers (Anthropic, domestic models, etc.) and frequently need to use different providers across different projects. However, CC Switch works by modifying `~/.claude/settings.json`, which introduces two problems:
 
-CCSC 通过以下方式解决这些问题：
+1. **Affects running Claude sessions** - Switching providers in CC Switch changes all running Claude instances, potentially causing unexpected behavior
+2. **Global scope only** - All Claude sessions share the same environment variables, making it difficult to use different providers simultaneously
 
-- **环境隔离** - 只影响由 CCSC 启动的 Claude 进程，不影响全局设置或其他运行中的实例
-- **不污染配置** - 完全不修改 `~/.claude/settings.json`
-- **会话级服务商选择** - 每个终端会话可以使用不同的服务商
-- **快速切换** - 无需打开 GUI，快速交互式选择
+CCSC solves these problems by:
+
+- **Environment isolation** - Only affects Claude processes launched by CCSC, not global settings or other running instances
+- **No config pollution** - Never modifies `~/.claude/settings.json`
+- **Session-level provider selection** - Each terminal session can use a different provider
+- **Quick switching** - Fast interactive selection without opening a GUI
 
 <img width="2563" height="1471" alt="My_Photor_1775418199154" src="https://github.com/user-attachments/assets/22890115-e2a4-46e3-92ef-6bc8270159c8" />
 
+Use cases:
+- Working on multiple projects that require different providers
+- Testing the same codebase against different Claude models
+- Running parallel Claude sessions with different providers
 
-适用场景：
-- 同时开发多个使用不同服务商的项目
-- 在不同 Claude 模型间测试同一代码库
-- 并行运行使用不同服务商的 Claude 会话
+## Features
 
-## 功能特性
+- 🖥️ **Cross-platform** - Supports macOS, Linux, Windows
+- 📦 **Easy to install** - Install via npm/bun, no external dependencies
+- 🔍 **Interactive UI** - Beautiful terminal UI with search and preview panel
+- 👀 **Preview panel** - View environment variable configuration before selecting
+- 📜 **History** - Recently used providers appear at the top
+- ⌨️ **Keyboard navigation** - Full keyboard support including Page Up/Down
+- 🔄 **Passthrough arguments** - All arguments are passed directly to Claude CLI
 
-- 🖥️ **跨平台** - 支持 macOS、Linux、Windows
-- 📦 **易于安装** - 通过 npm/bun 安装，无外部依赖
-- 🔍 **交互式 UI** - 美观的终端界面，支持搜索和预览面板
-- 👀 **预览面板** - 选择前查看环境变量配置
-- 📜 **历史记录** - 最近使用的服务商排在前面
-- ⌨️ **键盘导航** - 完整的键盘支持，包括 Page Up/Down
-- 🔄 **参数透传** - 所有参数直接传递给 Claude CLI
-
-## 前置要求
+## Prerequisites
 
 - Node.js >= 18.0.0
-- [CC Switch](https://github.com/farion1231/cc-switch) 已安装并配置
-- [Claude CLI](https://claude.ai/code) 已安装
+- [CC Switch](https://github.com/farion1231/cc-switch) installed and configured
+- [Claude CLI](https://claude.ai/code) installed
 
-## 安装
+## Installation
 
 ```bash
 # npm
 npm install -g @terranc/ccsc
 
-# 或 bun
+# or bun
 bun install -g @terranc/ccsc
 
-# 或直接运行
+# or run directly
 npx @terranc/ccsc
 ```
 
-## 使用方法
+## Usage
 
-### 交互式选择
+### Interactive selection
 
-运行 `ccsc` 进行交互式选择（全局安装后）：
+Run `ccsc` for interactive provider selection (after global install):
 
 ```bash
 ccsc
 ```
 
-界面包含：
-- **左侧面板**：服务商列表，支持搜索
-- **右侧面板**：选中服务商的环境变量预览
+The interface includes:
+- **Left panel**: Provider list with search support
+- **Right panel**: Environment variable preview for the selected provider
 
-### 键盘快捷键
+### Keyboard shortcuts
 
-| 按键 | 功能 |
-|-----|------|
-| `↑` / `↓` | 导航服务商列表 |
-| `PgUp` / `PgDn` | 翻页（每页 10 条） |
-| `Enter` | 确认选择 |
-| `Esc` | 取消 |
-| `输入文字` | 搜索/过滤服务商 |
+| Key | Function |
+|-----|----------|
+| `↑` / `↓` | Navigate provider list |
+| `PgUp` / `PgDn` | Page navigation (10 per page) |
+| `Enter` | Confirm selection |
+| `Esc` | Cancel |
+| `Type text` | Search/filter providers |
 
-### 传递参数给 Claude
+### Passing arguments to Claude
 
-除 `-h`/`--help` 和 `-V`/`--version` 外，所有参数都直接传递给 Claude：
+All arguments except `-h`/`--help` and `-V`/`--version` are passed directly to Claude:
 
 ```bash
 ccsc --continue
@@ -87,42 +88,42 @@ ccsc --dangerously-skip-permissions
 ccsc --print "Hello"
 ccsc --model claude-sonnet-4-20250514
 
-# 或使用 npx
+# or via npx
 npx @terranc/ccsc --continue
 ```
 
-### 帮助
+### Help
 
 ```bash
 ccsc --help
 ccsc --version
 ```
 
-## 环境变量
+## Environment variables
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `CC_CLI_PATH` | Claude CLI 可执行文件路径 | `claude` |
-| `CC_SWITCH_DB_PATH` | CC Switch 数据库完整路径 | `~/.cc-switch/cc-switch.db` |
-| `CC_SWITCH_HOME` | CC Switch 配置目录 | `~/.cc-switch` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CC_CLI_PATH` | Claude CLI executable path | `claude` |
+| `CC_SWITCH_DB_PATH` | Full path to CC Switch database | `~/.cc-switch/cc-switch.db` |
+| `CC_SWITCH_HOME` | CC Switch config directory | `~/.cc-switch` |
 
-### 自定义 Claude CLI
+### Custom Claude CLI
 
-你可以通过环境变量或命令行参数指定使用的 CLI：
+You can specify the CLI to use via environment variable or command-line argument:
 
 ```bash
-# 方式一：环境变量
+# Method 1: Environment variable
 export CC_CLI_PATH=/path/to/happy
 ccsc
 
-# 方式二：命令行参数（优先级更高）
+# Method 2: Command-line argument (higher priority)
 ccsc --cli happy
 ccsc --cli /path/to/custom-cli
 ```
 
-命令行参数 `--cli` 优先级高于环境变量 `CC_CLI_PATH`。
+The `--cli` argument takes priority over the `CC_CLI_PATH` environment variable.
 
-### 数据库路径配置
+### Database path configuration
 
 ```bash
 # macOS / Linux
@@ -135,41 +136,40 @@ $env:CC_SWITCH_DB_PATH = "C:\custom\path\cc-switch.db"
 set CC_SWITCH_DB_PATH=C:\custom\path\cc-switch.db
 ```
 
-## 历史记录
+## History
 
-服务商使用历史存储在 `~/.ccsc-history`，最近使用的服务商会显示在列表顶部。
+Provider usage history is stored in `~/.ccsc-history`. Recently used providers are displayed at the top of the list.
 
-## 开发
+## Development
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/terranc/ccsc.git
 cd ccsc
 
-# 安装依赖
+# Install dependencies
 npm install
 
-# 构建
+# Build
 npm run build
 
-# 本地测试
+# Local test
 node dist/index.js
 
-# 全局链接测试
+# Global link test
 npm link
 ```
 
-## 技术栈
+## Tech stack
 
 - [Ink](https://github.com/vadimdemedes/ink) - React for CLI
-- [ink-text-input](https://github.com/vadimdemedes/ink-text-input) - 文本输入组件
-- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) - SQLite 绑定
-- [commander](https://github.com/tj/commander.js) - CLI 框架
+- [ink-text-input](https://github.com/vadimdemedes/ink-text-input) - Text input component
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) - SQLite bindings
+- [commander](https://github.com/tj/commander.js) - CLI framework
 
 ## Links
 - [Linux Do](https://linux.do/)
 
-
-## 许可证
+## License
 
 MIT

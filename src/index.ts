@@ -12,6 +12,7 @@ import { getProviders, isDbAvailable } from './db.js';
 import { loadHistory, saveToHistory, sortByHistory } from './history.js';
 import { createProviderSettings, clearAllCcscSettings } from './settings.js';
 import type { Provider } from './types.js';
+import { checkForUpdates, printUpdateNotification } from './update-check.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
@@ -58,6 +59,12 @@ program
 program.parse();
 
 async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
+  // Check for updates before anything else
+  const latestVersion = checkForUpdates();
+  if (latestVersion) {
+    printUpdateNotification(latestVersion);
+  }
+
   if (!isDbAvailable()) {
     console.error('CC Switch database not found.');
     console.error(
