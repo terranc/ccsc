@@ -73,3 +73,5 @@ ccsc --cli /path/to/custom-cli
 This project uses simple mode: CHANGELOG + commit + push, no git tag, no GitHub release.
 Auto-detected: npm CLI package
 To force a full release, use `/github-push-and-release release`.
+
+<!-- github-push-and-release-commit-lang: en -->

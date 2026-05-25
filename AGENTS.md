@@ -16,3 +16,4 @@ Use `@/.trellis/` to learn:
 Keep this managed block so 'trellis update' can refresh the instructions.
 
 <!-- TRELLIS:END -->
+<!-- github-push-and-release-commit-lang: en -->
