@@ -1,9 +1,12 @@
+export type AppType = 'claude' | 'codex';
+
 export interface Provider {
   id: number;
   name: string;
   displayName: string;
   envVars: Record<string, string>;
   settingsConfig: Record<string, unknown>;
+  appType: AppType;
 }
 
 export interface ProviderRow {
@@ -15,4 +18,5 @@ export interface ProviderRow {
 export interface HistoryEntry {
   name: string;
   timestamp: number;
+  appType: AppType;
 }

@@ -3,7 +3,7 @@ const { Database } = NodeSqlite;
 import path from 'path';
 import os from 'os';
 import { existsSync } from 'fs';
-import type { Provider, ProviderRow } from './types.js';
+import type { Provider, ProviderRow, AppType } from './types.js';
 
 /**
  * Get the CC Switch database path
@@ -41,14 +41,15 @@ export function isDbAvailable(): boolean {
 /**
  * Get common config env from settings table
  */
-function getCommonConfigEnv(): Record<string, string> {
+function getCommonConfigEnv(appType: AppType = 'claude'): Record<string, string> {
   const dbPath = getDbPath();
   if (!existsSync(dbPath)) return {};
 
   const db = new Database(dbPath);
   try {
     const row = db.get(
-      "SELECT value FROM settings WHERE key = 'common_config_claude'"
+      "SELECT value FROM settings WHERE key = ?",
+      [`common_config_${appType}`]
     ) as { value: string } | undefined;
 
     if (!row) return {};
@@ -63,7 +64,7 @@ function getCommonConfigEnv(): Record<string, string> {
 }
 
 /**
- * Get common config for a given app type
+ * Get common config for a given app type (JSON-parsed)
  */
 export function getCommonConfig(appType: string = 'claude'): Record<string, unknown> {
   const dbPath = getDbPath();
@@ -86,9 +87,32 @@ export function getCommonConfig(appType: string = 'claude'): Record<string, unkn
 }
 
 /**
- * Get all Claude providers from CC Switch database
+ * Get common config raw value for a given app type (as stored in DB)
+ * Used for non-JSON formats like TOML (codex)
  */
-export function getProviders(): Provider[] {
+export function getCommonConfigRaw(appType: string): string {
+  const dbPath = getDbPath();
+  if (!existsSync(dbPath)) return '';
+
+  const db = new Database(dbPath);
+  try {
+    const row = db.get(
+      "SELECT value FROM settings WHERE key = ?",
+      [`common_config_${appType}`]
+    ) as { value: string } | undefined;
+
+    return row?.value || '';
+  } catch {
+    return '';
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Get all providers for a given app type from CC Switch database
+ */
+export function getProviders(appType: AppType = 'claude'): Provider[] {
   const dbPath = getDbPath();
 
   if (!existsSync(dbPath)) {
@@ -99,17 +123,18 @@ export function getProviders(): Provider[] {
   }
 
   const db = new Database(dbPath);
-  const commonEnv = getCommonConfigEnv();
+  const commonEnv = getCommonConfigEnv(appType);
 
   try {
     const rows = db.all(
       `SELECT id, name, settings_config
        FROM providers
-       WHERE app_type = 'claude'
-       ORDER BY name`
+       WHERE app_type = ?
+       ORDER BY name`,
+      [appType]
     ) as unknown as ProviderRow[];
 
-    return rows.map((row) => parseProvider(row, commonEnv));
+    return rows.map((row) => parseProvider(row, commonEnv, appType));
   } finally {
     db.close();
   }
@@ -120,7 +145,8 @@ export function getProviders(): Provider[] {
  */
 function parseProvider(
   row: ProviderRow,
-  commonEnv: Record<string, string>
+  commonEnv: Record<string, string>,
+  appType: AppType = 'claude'
 ): Provider {
   let config: { env?: Record<string, string>; [key: string]: unknown } = {};
 
@@ -139,14 +165,15 @@ function parseProvider(
     displayName: row.name,
     envVars: mergedEnv,
     settingsConfig: config,
+    appType,
   };
 }
 
 /**
  * Get a provider by name
  */
-export function getProviderByName(name: string): Provider | undefined {
-  const providers = getProviders();
+export function getProviderByName(name: string, appType: AppType = 'claude'): Provider | undefined {
+  const providers = getProviders(appType);
   return providers.find(
     (p) => p.name.toLowerCase() === name.toLowerCase()
   );

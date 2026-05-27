@@ -2,20 +2,21 @@
 
 [English](README.md)
 
-方便的多 Claude Code 启动器，从 [CC Switch](https://github.com/farion1231/cc-switch) 中选择 Claude 服务提供商，随时切换。
+方便的多 CLI 启动器，支持 Claude Code 和 Codex CLI。从 [CC Switch](https://github.com/farion1231/cc-switch) 中选择服务提供商，随时切换。
 
 ## 为什么需要这个项目？
 
-作为 CC Switch 的用户，我管理着多个 Claude 服务提供商（Anthropic、国产模型等），经常需要在不同的项目中切换不同的服务商。但 CC Switch 的工作方式是修改 `~/.claude/settings.json`，这带来了两个问题：
+作为 CC Switch 的用户，我管理着多个 Claude Code 和 Codex CLI 的服务提供商（Anthropic、国产模型等），经常需要在不同的项目中切换不同的服务商。但 CC Switch 的工作方式是修改全局配置文件，这带来了两个问题：
 
-1. **影响已运行的 Claude 会话** - 当你在 CC Switch 中切换服务商时，所有正在运行的 Claude 实例也会跟着切换，可能导致意外行为
-2. **仅支持全局作用域** - 所有 Claude 会话共享相同的环境变量，难以同时使用不同的服务商
+1. **影响已运行的会话** - 切换服务商时所有正在运行的实例也会跟着切换，可能导致意外行为
+2. **仅支持全局作用域** - 所有会话共享相同的配置，难以同时使用不同的服务商
 
 CCSC 通过以下方式解决这些问题：
 
-- **环境隔离** - 只影响由 CCSC 启动的 Claude 进程，不影响全局设置或其他运行中的实例
-- **不污染配置** - 完全不修改 `~/.claude/settings.json`
+- **环境隔离** - 只影响由 CCSC 启动的进程，不影响全局设置或其他运行中的实例
+- **不污染配置** - 完全不修改 `~/.claude/settings.json` 或 `~/.codex/config.toml`
 - **会话级服务商选择** - 每个终端会话可以使用不同的服务商
+- **多 CLI 支持** - 同时支持 Claude Code 和 Codex CLI
 - **快速切换** - 无需打开 GUI，快速交互式选择
 
 <img width="2563" height="1471" alt="My_Photor_1775418199154" src="https://github.com/user-attachments/assets/22890115-e2a4-46e3-92ef-6bc8270159c8" />
@@ -33,13 +34,14 @@ CCSC 通过以下方式解决这些问题：
 - 👀 **预览面板** - 选择前查看环境变量配置
 - 📜 **历史记录** - 最近使用的服务商排在前面
 - ⌨️ **键盘导航** - 完整的键盘支持，包括 Page Up/Down
-- 🔄 **参数透传** - 所有参数直接传递给 Claude CLI
+- 🔄 **参数透传** - 所有参数直接传递给目标 CLI
+- 🤖 **多 CLI 支持** - 同时支持 Claude Code 和 Codex CLI
 
 ## 前置要求
 
 - Node.js >= 18.0.0
 - [CC Switch](https://github.com/farion1231/cc-switch) 已安装并配置
-- [Claude CLI](https://claude.ai/code) 已安装
+- [Claude CLI](https://claude.ai/code) 和/或 [Codex CLI](https://github.com/openai/codex) 已安装
 
 ## 安装
 
@@ -56,17 +58,18 @@ npx @terranc/ccsc
 
 ## 使用方法
 
-### 交互式选择
-
-运行 `ccsc` 进行交互式选择（全局安装后）：
+### 启动 Claude Code
 
 ```bash
-ccsc
+ccsc              # 交互式选择服务商 → 启动 Claude
+ccsc claude       # 同上
 ```
 
-界面包含：
-- **左侧面板**：服务商列表，支持搜索
-- **右侧面板**：选中服务商的环境变量预览
+### 启动 Codex CLI
+
+```bash
+ccsc codex        # 交互式选择服务商 → 启动 Codex
+```
 
 ### 键盘快捷键
 
@@ -78,50 +81,39 @@ ccsc
 | `Esc` | 取消 |
 | `输入文字` | 搜索/过滤服务商 |
 
-### 传递参数给 Claude
+### 传递参数
 
-除 `-h`/`--help` 和 `-V`/`--version` 外，所有参数都直接传递给 Claude：
+所有参数直接传递给目标 CLI：
 
 ```bash
+# Claude Code
 ccsc --continue
-ccsc --dangerously-skip-permissions
 ccsc --print "Hello"
 ccsc --model claude-sonnet-4-20250514
 
-# 或使用 npx
-npx @terranc/ccsc --continue
+# Codex CLI
+ccsc codex -- some prompt here
+```
+
+### 清除生成的配置文件
+
+```bash
+ccsc --clear
 ```
 
 ### 帮助
 
 ```bash
 ccsc --help
-ccsc --version
+ccsc codex --help
 ```
 
 ## 环境变量
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `CC_CLI_PATH` | Claude CLI 可执行文件路径 | `claude` |
 | `CC_SWITCH_DB_PATH` | CC Switch 数据库完整路径 | `~/.cc-switch/cc-switch.db` |
 | `CC_SWITCH_HOME` | CC Switch 配置目录 | `~/.cc-switch` |
-
-### 自定义 Claude CLI
-
-你可以通过环境变量或命令行参数指定使用的 CLI：
-
-```bash
-# 方式一：环境变量
-export CC_CLI_PATH=/path/to/happy
-ccsc
-
-# 方式二：命令行参数（优先级更高）
-ccsc --cli happy
-ccsc --cli /path/to/custom-cli
-```
-
-命令行参数 `--cli` 优先级高于环境变量 `CC_CLI_PATH`。
 
 ### 数据库路径配置
 
@@ -164,7 +156,7 @@ npm link
 
 - [Ink](https://github.com/vadimdemedes/ink) - React for CLI
 - [ink-text-input](https://github.com/vadimdemedes/ink-text-input) - 文本输入组件
-- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) - SQLite 绑定
+- [node-sqlite3-wasm](https://github.com/nicolo-ribaudo/node-sqlite3-wasm) - SQLite 绑定 (WASM)
 - [commander](https://github.com/tj/commander.js) - CLI 框架
 
 ## 链接

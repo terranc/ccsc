@@ -8,7 +8,12 @@ import type { Provider } from '../types.js';
  * Shows first 4 + **** + last 4 characters
  */
 function maskSensitiveValue(value: string | undefined, key: string): string {
-  const sensitiveKeys = ['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY'];
+  const sensitiveKeys = [
+    'ANTHROPIC_AUTH_TOKEN',
+    'ANTHROPIC_API_KEY',
+    'OPENAI_API_KEY',
+    'APIROUTER_API_KEY',
+  ];
 
   if (!value) {
     return '';
@@ -38,25 +43,47 @@ function ProviderPreview({ provider }: ProviderPreviewProps) {
     );
   }
 
+  // Claude: envVars from settings_config.env
+  // Codex: auth keys from settings_config.auth
   const envKeys = Object.keys(provider.envVars).filter((k) => provider.envVars[k]);
+  const authKeys = Object.keys((provider.settingsConfig as any)?.auth || {});
 
   return (
     <Box flexDirection="column" paddingX={1} borderStyle="single" borderColor="gray">
       <Text bold color="cyan">
         {provider.name}
+        {provider.appType === 'codex' && <Text dimColor> (codex)</Text>}
       </Text>
       <Text dimColor>{'─'.repeat(38)}</Text>
 
-      {envKeys.length === 0 ? (
-        <Text dimColor>No environment variables configured</Text>
-      ) : (
-        envKeys.map((key) => (
-          <Box key={key}>
-            <Text color="yellow">{key}</Text>
-            <Text>: </Text>
-            <Text>{maskSensitiveValue(provider.envVars[key], key)}</Text>
-          </Box>
-        ))
+      {/* Claude env vars */}
+      {envKeys.length > 0 && envKeys.map((key) => (
+        <Box key={key}>
+          <Text color="yellow">{key}</Text>
+          <Text>: </Text>
+          <Text>{maskSensitiveValue(provider.envVars[key], key)}</Text>
+        </Box>
+      ))}
+
+      {/* Codex auth keys */}
+      {authKeys.length > 0 && authKeys.map((key) => (
+        <Box key={key}>
+          <Text color="yellow">{key}</Text>
+          <Text>: </Text>
+          <Text>{maskSensitiveValue((provider.settingsConfig as any).auth[key], key)}</Text>
+        </Box>
+      ))}
+
+      {/* Codex config preview */}
+      {provider.appType === 'codex' && (provider.settingsConfig as any)?.config && (
+        <Box flexDirection="column" marginTop={1}>
+          <Text dimColor>Config:</Text>
+          <Text>{(provider.settingsConfig as any).config.substring(0, 150)}...</Text>
+        </Box>
+      )}
+
+      {envKeys.length === 0 && authKeys.length === 0 && (
+        <Text dimColor>No credentials configured</Text>
       )}
     </Box>
   );

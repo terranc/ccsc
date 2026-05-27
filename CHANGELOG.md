@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepchangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-28
+
+### Added
+- Codex CLI support via `ccsc codex` subcommand
+- Per-provider CODEX_HOME isolation with separate auth.json and config.toml
+- Trust sections merged from original ~/.codex/config.toml
+
+### Changed
+- CLI uses subcommands: `ccsc` (claude), `ccsc claude`, `ccsc codex`
+- History tracks app type (claude/codex) separately
+- Preview panel shows codex auth info and config preview
+
+### Removed
+- `--cli` option and `CC_CLI_PATH` environment variable (simplified CLI)
+- `--app` option (replaced by subcommands)
+
 ## [1.1.0] - 2026-05-25
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "name": "@terranc/ccsc",
-  "version": "1.1.0",
-  "description": "Cross-platform CLI tool for CC Switch provider selection with interactive UI",
+  "version": "1.2.0",
+  "description": "Cross-platform CLI tool for CC Switch provider selection with interactive UI (Claude Code + Codex)",
   "type": "module",
   "bin": {
     "ccsc": "dist/index.js"
@@ -20,6 +20,8 @@
     "cc-switch",
     "claude",
     "claude-code",
+    "codex",
+    "openai",
     "cli",
     "provider",
     "anthropic",

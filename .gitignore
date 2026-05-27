@@ -16,3 +16,4 @@ Thumbs.db
 
 .trellis/
 /.*/**
+.doc_hash

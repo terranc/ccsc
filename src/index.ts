@@ -11,7 +11,8 @@ import { App } from './ui/App.js';
 import { getProviders, isDbAvailable } from './db.js';
 import { loadHistory, saveToHistory, sortByHistory } from './history.js';
 import { createProviderSettings, clearAllCcscSettings } from './settings.js';
-import type { Provider } from './types.js';
+import { createProviderConfig, clearAllCcscCodexConfigs } from './codex-settings.js';
+import type { Provider, AppType } from './types.js';
 import { checkForUpdates, printUpdateNotification } from './update-check.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,42 +24,81 @@ program
   .name('ccsc')
   .description('Cross-platform CLI for CC Switch provider selection')
   .version(pkg.version)
-  .option('--clear', 'Clear all CCSC-generated settings files')
-  .option('--cli <name>', 'Specify CLI tool to use (overrides CC_CLI_PATH env)')
+  .option('--clear', 'Clear all CCSC-generated config files')
+  .enablePositionalOptions();
+
+/**
+ * Shared action for both claude and codex subcommands
+ */
+async function runWithType(type: AppType, args: string[], options: Record<string, string>) {
+  try {
+    if (options.clear) {
+      const claudeRemoved = await clearAllCcscSettings();
+      const codexRemoved = await clearAllCcscCodexConfigs();
+      const total = claudeRemoved + codexRemoved;
+      if (total > 0) {
+        console.log(`✓ Cleared ${total} CCSC config file(s)`);
+      } else {
+        console.log('No CCSC config files found');
+      }
+      process.exit(0);
+    }
+
+    // Filter out ccsc's own flags, pass rest to target CLI
+    const rawArgs: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--clear') continue;
+      rawArgs.push(arg);
+    }
+    await main(rawArgs, type);
+  } catch (error) {
+    console.error(
+      'Error:',
+      error instanceof Error ? error.message : String(error)
+    );
+    process.exit(1);
+  }
+}
+
+// Default: ccsc → claude
+program
   .allowUnknownOption()
   .allowExcessArguments()
   .passThroughOptions()
   .action(async (options) => {
-    try {
-      // Handle --clear flag
-      if (options.clear) {
-        const removed = await clearAllCcscSettings();
-        if (removed > 0) {
-          console.log(`✓ Cleared ${removed} CCSC settings file(s)`);
-        } else {
-          console.log('No CCSC settings files found');
-        }
-        process.exit(0);
-      }
+    await runWithType('claude', process.argv.slice(2), options);
+  });
 
-      // Extract --cli option and remaining args
-      const cliOverride = options.cli;
-      const rawArgs = process.argv.slice(2).filter(
-        (arg) => arg !== '--clear' && !arg.startsWith('--cli') && arg !== cliOverride
-      );
-      await main(rawArgs, cliOverride);
-    } catch (error) {
-      console.error(
-        'Error:',
-        error instanceof Error ? error.message : String(error)
-      );
-      process.exit(1);
-    }
+// Subcommand: ccsc claude
+program
+  .command('claude')
+  .description('Launch Claude Code with provider selection')
+  .allowUnknownOption()
+  .allowExcessArguments()
+  .passThroughOptions()
+  .action(async () => {
+    const idx = process.argv.indexOf('claude');
+    const args = process.argv.slice(idx + 1);
+    await runWithType('claude', args, program.opts());
+  });
+
+// Subcommand: ccsc codex
+program
+  .command('codex')
+  .description('Launch Codex CLI with provider selection')
+  .allowUnknownOption()
+  .allowExcessArguments()
+  .passThroughOptions()
+  .action(async () => {
+    const idx = process.argv.indexOf('codex');
+    const args = process.argv.slice(idx + 1);
+    await runWithType('codex', args, program.opts());
   });
 
 program.parse();
 
-async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
+async function main(args: string[], type: AppType = 'claude'): Promise<void> {
   // Check for updates before anything else
   const latestVersion = checkForUpdates();
   if (latestVersion) {
@@ -73,10 +113,10 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
     process.exit(1);
   }
 
-  const providers = getProviders();
+  const providers = getProviders(type);
 
   if (providers.length === 0) {
-    console.error('No Claude providers found in CC Switch.');
+    console.error(`No ${type} providers found in CC Switch.`);
     console.error('Please add providers in CC Switch first.');
     process.exit(1);
   }
@@ -86,16 +126,11 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   const sortedProviders = sortByHistory(providers, history);
 
   // Render Ink UI and wait for selection
-  const selectedProvider = await new Promise<Provider>((resolve, reject) => {
+  const selectedProvider = await new Promise<Provider>((resolve) => {
     const { unmount } = render(
       React.createElement(App, {
         providers: sortedProviders,
         onSelect: (provider: Provider) => {
-          // Restore stdin from Ink's raw mode BEFORE unmounting.
-          // Ink's useInput hook sets stdin to raw mode for keyboard navigation,
-          // but unmount() doesn't restore it. If we wait until after unmount,
-          // the timing is unreliable and the child process may inherit a raw
-          // stdin, causing input to appear frozen or extremely slow.
           if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
             process.stdin.setRawMode(false);
           }
@@ -107,49 +142,62 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
   });
 
   // Save to history
-  await saveToHistory(selectedProvider.name);
+  await saveToHistory(selectedProvider.name, type);
 
-  // Create provider-specific settings file with merged env
+  if (type === 'codex') {
+    await launchCodex(selectedProvider, args);
+  } else {
+    await launchClaude(selectedProvider, args);
+  }
+}
+
+/**
+ * Launch Claude Code with the selected provider
+ */
+async function launchClaude(provider: Provider, claudeArgs: string[]): Promise<void> {
   const settingsPath = await createProviderSettings(
-    selectedProvider.name,
-    selectedProvider.envVars,
-    selectedProvider.settingsConfig
+    provider.name,
+    provider.envVars,
+    provider.settingsConfig
   );
 
-  // Build claude args with --settings parameter
   const finalArgs = [`--settings=${settingsPath}`, ...claudeArgs];
 
-  // Spawn claude process
-  console.log(`🚀 Starting Claude with provider: ${selectedProvider.name}`);
+  console.log(`🚀 Starting Claude with provider: ${provider.name}`);
 
-  // Priority: --cli option > CC_CLI_PATH env var > 'claude' default
-  const claudeBin = cliOverride || process.env.CC_CLI_PATH || 'claude';
+  await spawnCli('claude', finalArgs, provider.envVars);
+}
 
-  // Spawn through the user's login shell (`$SHELL -l -c`) so that:
-  // 1. PATH and rc-file tooling load as if the user typed the command themselves
-  // 2. Child processes (MCP servers that need `node`/`npx`) find their deps
-  //
-  // Problem: version managers (volta/nvm/asdf) can inject shim paths that shadow
-  // the user's intended `claude` binary. We solve this by resolving `claude` to
-  // its canonical path via the user's LOGIN shell (which reflects their intended
-  // PATH without version-manager injection from the current process tree), then
-  // spawning that absolute path inside a login shell (so children still
-  // get the full environment).
-  //
-  // Note: We use `-l` (login) instead of `-i` (interactive) because interactive
-  // mode causes shells to read from /dev/tty directly, breaking stdin for
-  // Claude Code and making the CLI unresponsive.
+/**
+ * Launch Codex CLI with the selected provider
+ *
+ * Uses CODEX_HOME isolation: each provider gets its own directory
+ * under ~/.ccsc/codex-{slug}/ containing auth.json + config.toml.
+ */
+async function launchCodex(provider: Provider, codexArgs: string[]): Promise<void> {
+  const config = provider.settingsConfig as { auth?: Record<string, string>; config?: string };
+  const authVars = config.auth || {};
+  const configToml = config.config || '';
+
+  const codexHome = await createProviderConfig(provider.name, configToml, authVars);
+
+  console.log(`🚀 Starting Codex with provider: ${provider.name}`);
+
+  await spawnCli('codex', codexArgs, { CODEX_HOME: codexHome });
+}
+
+/**
+ * Spawn a CLI process through the user's login shell
+ */
+async function spawnCli(bin: string, args: string[], envVars: Record<string, string>): Promise<void> {
   const userShell = process.env.SHELL;
 
-  // Resolve claude to absolute path: start a clean login shell (env -i strips
-  // inherited PATH pollution from version managers) and let it rebuild PATH
-  // from rc files, then `which` the binary. This finds the claude the user
-  // actually intends to run, regardless of what ccsc's own process tree injected.
-  let resolvedBin = claudeBin;
-  if (userShell && !claudeBin.includes('/')) {
+  // Resolve binary to absolute path via login shell
+  let resolvedBin = bin;
+  if (userShell && !bin.includes('/')) {
     try {
       const result = execSync(
-        `env -i HOME="${process.env.HOME}" SHELL="${userShell}" TERM="${process.env.TERM || 'xterm-256color'}" ${userShell} -l -c 'which ${claudeBin}'`,
+        `env -i HOME="${process.env.HOME}" SHELL="${userShell}" TERM="${process.env.TERM || 'xterm-256color'}" ${userShell} -l -c 'which ${bin}'`,
         { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
       ).trim();
       if (result && !result.includes('not found')) {
@@ -160,21 +208,24 @@ async function main(claudeArgs: string[], cliOverride?: string): Promise<void> {
     }
   }
 
+  // Merge auth env vars into process env
+  const spawnEnv = { ...process.env, ...envVars };
+
   const child = userShell
     ? spawn(
         userShell,
-        ['-l', '-c', 'exec "$@"', 'ccsc', resolvedBin, ...finalArgs],
-        { stdio: 'inherit' }
+        ['-l', '-c', 'exec "$@"', 'ccsc', resolvedBin, ...args],
+        { stdio: 'inherit', env: spawnEnv }
       )
-    : spawn(resolvedBin, finalArgs, {
+    : spawn(resolvedBin, args, {
         stdio: 'inherit',
         shell: process.platform === 'win32',
+        env: spawnEnv,
       });
 
   child.on('error', (err) => {
-    console.error(`Failed to start ${claudeBin}:`, err.message);
-    console.error('Please ensure Claude CLI is installed and in your PATH.');
-    console.error('You can set CC_CLI_PATH environment variable or use --cli option to specify a custom CLI.');
+    console.error(`Failed to start ${bin}:`, err.message);
+    console.error(`Please ensure ${bin} is installed and in your PATH.`);
     process.exit(1);
   });
 

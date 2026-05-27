@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-CCSC (CC Switch CLI) - A cross-platform CLI tool for selecting Claude Code providers from CC Switch database. Creates isolated provider-specific settings without modifying global `~/.claude/settings.json`.
+CCSC (CC Switch CLI) - A cross-platform CLI tool for selecting Claude Code and Codex CLI providers from CC Switch database. Creates isolated provider-specific settings without modifying global `~/.claude/settings.json` or `~/.codex/config.toml`.
 
 ## Commands
 
@@ -27,45 +27,62 @@ npm unlink -g @terranc/ccsc  # Remove global link
 
 ```
 src/
-├── index.ts       # Entry point, Commander CLI setup, main orchestration
-├── db.ts          # SQLite queries to CC Switch database
-├── history.ts     # Usage history persistence (~/.ccsc-history)
-├── settings.ts    # Provider-specific settings file management
-├── types.ts       # TypeScript interfaces (Provider, HistoryEntry)
+├── index.ts           # Entry point, Commander CLI setup, main orchestration
+├── db.ts              # SQLite queries to CC Switch database
+├── history.ts         # Usage history persistence (~/.ccsc-history)
+├── settings.ts        # Claude: provider-specific JSON settings file management
+├── codex-settings.ts  # Codex: provider-specific TOML config file management
+├── types.ts           # TypeScript interfaces (Provider, HistoryEntry, AppType)
 └── ui/
-    └── App.tsx    # Ink React component for interactive selection
+    └── App.tsx        # Ink React component for interactive selection
 ```
 
-### Data Flow
+### Data Flow (Claude Code)
 
-1. `db.ts` reads providers from `~/.cc-switch/cc-switch.db` (SQLite)
+1. `db.ts` reads providers from `~/.cc-switch/cc-switch.db` (SQLite, app_type='claude')
 2. `history.ts` sorts providers by recent usage
 3. `ui/App.tsx` renders interactive selection UI (Ink + React)
 4. `settings.ts` creates isolated `~/.claude/ccsc-{slug}.settings.json` with merged env vars
 5. `index.ts` spawns Claude CLI with `--settings` flag pointing to the generated file
 
+### Data Flow (Codex CLI)
+
+1. `db.ts` reads providers from `~/.cc-switch/cc-switch.db` (SQLite, app_type='codex')
+2. `history.ts` sorts providers by recent usage
+3. `ui/App.tsx` renders interactive selection UI (Ink + React)
+4. `codex-settings.ts` creates isolated `~/.codex/ccsc-{slug}.config.toml` with merged TOML config
+5. `index.ts` spawns Codex CLI with `--profile ccsc-{slug}` and auth env vars
+
 ### Environment Variables
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `CC_CLI_PATH` | Custom Claude CLI binary | `claude` |
 | `CC_SWITCH_DB_PATH` | Full path to database file | `~/.cc-switch/cc-switch.db` |
 | `CC_SWITCH_HOME` | Custom config directory | `~/.cc-switch` |
 
-### CLI Option
-
-Use `--cli` option to specify CLI tool (overrides `CC_CLI_PATH` env):
+### CLI Usage
 
 ```bash
-ccsc --cli happy
-ccsc --cli /path/to/custom-cli
+# Launch Claude Code (default)
+ccsc
+ccsc claude
+
+# Launch Codex CLI
+ccsc codex
+
+# Clear all generated config files
+ccsc --clear
 ```
 
 ## Key Implementation Details
 
-- **Settings Isolation**: Each provider gets its own settings file (`ccsc-{slug}.settings.json`), never modifies `~/.claude/settings.json`
+- **Settings Isolation**: Each provider gets its own config file, never modifies global config
+  - Claude: `~/.claude/ccsc-{slug}.settings.json`
+  - Codex: `~/.codex/ccsc-{slug}.config.toml`
 - **Env Merging**: `settings.ts` merges global `common_config_claude` env vars with provider-specific env vars
-- **History**: Simple append-only file with timestamps, parsed and sorted in-memory
+- **TOML Merge**: `codex-settings.ts` merges `common_config_codex` TOML with provider config TOML (provider overrides)
+- **Auth Handling**: Claude passes env vars in settings JSON; Codex passes auth env vars (`OPENAI_API_KEY` etc.) via spawn env
+- **History**: Append-only file (`~/.ccsc-history`) with format `timestamp\tname\tappType`, sorted in-memory per app type
 - **UI**: Ink React components with keyboard navigation (↑/↓, PgUp/PgDn, Enter, Esc, search)
 
 ## Version Release Preference

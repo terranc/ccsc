@@ -2,20 +2,21 @@
 
 [中文](README.zh-CN.md)
 
-A convenient multi-provider Claude Code launcher. Select your Claude service provider from [CC Switch](https://github.com/farion1231/cc-switch) and switch on the fly.
+A convenient multi-provider launcher for Claude Code and Codex CLI. Select your service provider from [CC Switch](https://github.com/farion1231/cc-switch) and switch on the fly.
 
 ## Why this project?
 
-As a CC Switch user, I manage multiple Claude service providers (Anthropic, domestic models, etc.) and frequently need to use different providers across different projects. However, CC Switch works by modifying `~/.claude/settings.json`, which introduces two problems:
+As a CC Switch user, I manage multiple service providers (Anthropic, domestic models, etc.) for both Claude Code and Codex CLI, and frequently need to use different providers across different projects. However, CC Switch works by modifying global config files, which introduces two problems:
 
-1. **Affects running Claude sessions** - Switching providers in CC Switch changes all running Claude instances, potentially causing unexpected behavior
-2. **Global scope only** - All Claude sessions share the same environment variables, making it difficult to use different providers simultaneously
+1. **Affects running sessions** - Switching providers changes all running instances, potentially causing unexpected behavior
+2. **Global scope only** - All sessions share the same configuration, making it difficult to use different providers simultaneously
 
 CCSC solves these problems by:
 
-- **Environment isolation** - Only affects Claude processes launched by CCSC, not global settings or other running instances
-- **No config pollution** - Never modifies `~/.claude/settings.json`
+- **Environment isolation** - Only affects processes launched by CCSC, not global settings or other running instances
+- **No config pollution** - Never modifies `~/.claude/settings.json` or `~/.codex/config.toml`
 - **Session-level provider selection** - Each terminal session can use a different provider
+- **Multi-CLI support** - Works with both Claude Code and Codex CLI
 - **Quick switching** - Fast interactive selection without opening a GUI
 
 <img width="2563" height="1471" alt="My_Photor_1775418199154" src="https://github.com/user-attachments/assets/22890115-e2a4-46e3-92ef-6bc8270159c8" />
@@ -33,13 +34,14 @@ Use cases:
 - 👀 **Preview panel** - View environment variable configuration before selecting
 - 📜 **History** - Recently used providers appear at the top
 - ⌨️ **Keyboard navigation** - Full keyboard support including Page Up/Down
-- 🔄 **Passthrough arguments** - All arguments are passed directly to Claude CLI
+- 🔄 **Passthrough arguments** - All arguments are passed directly to the target CLI
+- 🤖 **Multi-CLI** - Supports both Claude Code and Codex CLI
 
 ## Prerequisites
 
 - Node.js >= 18.0.0
 - [CC Switch](https://github.com/farion1231/cc-switch) installed and configured
-- [Claude CLI](https://claude.ai/code) installed
+- [Claude CLI](https://claude.ai/code) and/or [Codex CLI](https://github.com/openai/codex) installed
 
 ## Installation
 
@@ -56,17 +58,18 @@ npx @terranc/ccsc
 
 ## Usage
 
-### Interactive selection
-
-Run `ccsc` for interactive provider selection (after global install):
+### Launch Claude Code
 
 ```bash
-ccsc
+ccsc              # interactive provider selection → launch Claude
+ccsc claude       # same as above
 ```
 
-The interface includes:
-- **Left panel**: Provider list with search support
-- **Right panel**: Environment variable preview for the selected provider
+### Launch Codex CLI
+
+```bash
+ccsc codex        # interactive provider selection → launch Codex
+```
 
 ### Keyboard shortcuts
 
@@ -78,50 +81,39 @@ The interface includes:
 | `Esc` | Cancel |
 | `Type text` | Search/filter providers |
 
-### Passing arguments to Claude
+### Passing arguments
 
-All arguments except `-h`/`--help` and `-V`/`--version` are passed directly to Claude:
+All arguments are passed directly to the target CLI:
 
 ```bash
+# Claude Code
 ccsc --continue
-ccsc --dangerously-skip-permissions
 ccsc --print "Hello"
 ccsc --model claude-sonnet-4-20250514
 
-# or via npx
-npx @terranc/ccsc --continue
+# Codex CLI
+ccsc codex -- some prompt here
+```
+
+### Clear generated config files
+
+```bash
+ccsc --clear
 ```
 
 ### Help
 
 ```bash
 ccsc --help
-ccsc --version
+ccsc codex --help
 ```
 
 ## Environment variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `CC_CLI_PATH` | Claude CLI executable path | `claude` |
 | `CC_SWITCH_DB_PATH` | Full path to CC Switch database | `~/.cc-switch/cc-switch.db` |
 | `CC_SWITCH_HOME` | CC Switch config directory | `~/.cc-switch` |
-
-### Custom Claude CLI
-
-You can specify the CLI to use via environment variable or command-line argument:
-
-```bash
-# Method 1: Environment variable
-export CC_CLI_PATH=/path/to/happy
-ccsc
-
-# Method 2: Command-line argument (higher priority)
-ccsc --cli happy
-ccsc --cli /path/to/custom-cli
-```
-
-The `--cli` argument takes priority over the `CC_CLI_PATH` environment variable.
 
 ### Database path configuration
 
@@ -164,7 +156,7 @@ npm link
 
 - [Ink](https://github.com/vadimdemedes/ink) - React for CLI
 - [ink-text-input](https://github.com/vadimdemedes/ink-text-input) - Text input component
-- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) - SQLite bindings
+- [node-sqlite3-wasm](https://github.com/nicolo-ribaudo/node-sqlite3-wasm) - SQLite bindings (WASM)
 - [commander](https://github.com/tj/commander.js) - CLI framework
 
 ## Links
