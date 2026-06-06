@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, type ReactNode } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { Provider } from '../types.js';
@@ -7,19 +7,16 @@ import type { Provider } from '../types.js';
  * Mask sensitive values for display
  * Shows first 4 + **** + last 4 characters
  */
-function maskSensitiveValue(value: string | undefined, key: string): string {
-  const sensitiveKeys = [
-    'ANTHROPIC_AUTH_TOKEN',
-    'ANTHROPIC_API_KEY',
-    'OPENAI_API_KEY',
-    'APIROUTER_API_KEY',
-  ];
-
-  if (!value) {
+function maskSensitiveValue(value: unknown, key: string): string {
+  if (value === undefined || value === null || value === '') {
     return '';
   }
 
-  if (!sensitiveKeys.includes(key)) {
+  if (typeof value !== 'string') {
+    return summarizeValue(value);
+  }
+
+  if (!isSensitiveKey(key)) {
     return value;
   }
 
@@ -30,8 +27,104 @@ function maskSensitiveValue(value: string | undefined, key: string): string {
   return `${value.slice(0, 4)}****${value.slice(-4)}`;
 }
 
+function isSensitiveKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  return (
+    normalized === 'auth' ||
+    normalized.includes('token') ||
+    normalized.includes('secret') ||
+    normalized.includes('password') ||
+    normalized.includes('credential') ||
+    /api[_-]?key/.test(normalized)
+  );
+}
+
+function summarizeValue(value: unknown): string {
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    const suffix = value.length === 1 ? '' : 's';
+    return `[${value.length} item${suffix}]`;
+  }
+
+  const record = getRecord(value);
+  if (record) {
+    const keys = Object.keys(record);
+    if (keys.length === 0) {
+      return '{}';
+    }
+
+    const previewKeys = keys.slice(0, 4).join(', ');
+    return keys.length > 4 ? `{ ${previewKeys}, ... }` : `{ ${previewKeys} }`;
+  }
+
+  return String(value);
+}
+
+function getRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function getConfigPreview(value: unknown): string {
+  if (typeof value !== 'string') {
+    return maskSensitiveValue(value, 'config');
+  }
+
+  const redacted = value
+    .split('\n')
+    .map((line) => {
+      const match = line.match(/^(\s*([a-zA-Z0-9_.-]+)\s*=\s*)(.+)$/);
+      return match && isSensitiveKey(match[2]) ? `${match[1]}"****"` : line;
+    })
+    .join('\n');
+
+  return redacted.length > 150 ? `${redacted.substring(0, 150)}...` : redacted;
+}
+
 interface ProviderPreviewProps {
   provider: Provider | undefined;
+}
+
+interface PreviewErrorBoundaryProps {
+  providerName: string | undefined;
+  children: ReactNode;
+}
+
+interface PreviewErrorBoundaryState {
+  error: Error | undefined;
+}
+
+class PreviewErrorBoundary extends React.Component<
+  PreviewErrorBoundaryProps,
+  PreviewErrorBoundaryState
+> {
+  state: PreviewErrorBoundaryState = { error: undefined };
+
+  static getDerivedStateFromError(error: Error): PreviewErrorBoundaryState {
+    return { error };
+  }
+
+  render() {
+    if (!this.state.error) {
+      return this.props.children;
+    }
+
+    return (
+      <Box flexDirection="column" paddingX={1} borderStyle="single" borderColor="yellow">
+        <Text bold color="yellow">Preview unavailable</Text>
+        {this.props.providerName && (
+          <Text dimColor>{this.props.providerName} can still be selected.</Text>
+        )}
+        <Text dimColor>Press Enter to launch with this provider.</Text>
+      </Box>
+    );
+  }
 }
 
 function ProviderPreview({ provider }: ProviderPreviewProps) {
@@ -46,7 +139,11 @@ function ProviderPreview({ provider }: ProviderPreviewProps) {
   // Claude: envVars from settings_config.env
   // Codex: auth keys from settings_config.auth
   const envKeys = Object.keys(provider.envVars).filter((k) => provider.envVars[k]);
-  const authKeys = Object.keys((provider.settingsConfig as any)?.auth || {});
+  const auth = getRecord(provider.settingsConfig.auth);
+  const authKeys = auth
+    ? Object.keys(auth).filter((k) => auth[k] !== undefined && auth[k] !== null && auth[k] !== '')
+    : [];
+  const configPreview = getConfigPreview(provider.settingsConfig.config);
 
   return (
     <Box flexDirection="column" paddingX={1} borderStyle="single" borderColor="gray">
@@ -70,15 +167,15 @@ function ProviderPreview({ provider }: ProviderPreviewProps) {
         <Box key={key}>
           <Text color="yellow">{key}</Text>
           <Text>: </Text>
-          <Text>{maskSensitiveValue((provider.settingsConfig as any).auth[key], key)}</Text>
+          <Text>{maskSensitiveValue(auth?.[key], key)}</Text>
         </Box>
       ))}
 
       {/* Codex config preview */}
-      {provider.appType === 'codex' && (provider.settingsConfig as any)?.config && (
+      {provider.appType === 'codex' && configPreview && (
         <Box flexDirection="column" marginTop={1}>
           <Text dimColor>Config:</Text>
-          <Text>{(provider.settingsConfig as any).config.substring(0, 150)}...</Text>
+          <Text>{configPreview}</Text>
         </Box>
       )}
 
@@ -222,7 +319,12 @@ export function App({ providers, onSelect }: AppProps) {
 
         {/* Right: Preview */}
         <Box width="50%">
-          <ProviderPreview provider={selectedProvider} />
+          <PreviewErrorBoundary
+            key={selectedProvider ? `${selectedProvider.appType}:${selectedProvider.id}` : 'none'}
+            providerName={selectedProvider?.name}
+          >
+            <ProviderPreview provider={selectedProvider} />
+          </PreviewErrorBoundary>
         </Box>
       </Box>
 

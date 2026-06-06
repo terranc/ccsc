@@ -154,7 +154,7 @@ async function getTrustSections(): Promise<Map<string, Map<string, string>>> {
 export async function createProviderConfig(
   providerName: string,
   providerConfigToml: string,
-  authVars: Record<string, string>
+  authVars: Record<string, unknown>
 ): Promise<string> {
   const codexHome = getCodexHomePath(providerName);
 

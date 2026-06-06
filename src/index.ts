@@ -175,15 +175,23 @@ async function launchClaude(provider: Provider, claudeArgs: string[]): Promise<v
  * under ~/.ccsc/codex-{slug}/ containing auth.json + config.toml.
  */
 async function launchCodex(provider: Provider, codexArgs: string[]): Promise<void> {
-  const config = provider.settingsConfig as { auth?: Record<string, string>; config?: string };
-  const authVars = config.auth || {};
-  const configToml = config.config || '';
+  const config = provider.settingsConfig;
+  const authVars = getRecord(config.auth) || {};
+  const configToml = typeof config.config === 'string' ? config.config : '';
 
   const codexHome = await createProviderConfig(provider.name, configToml, authVars);
 
   console.log(`🚀 Starting Codex with provider: ${provider.name}`);
 
   await spawnCli('codex', codexArgs, { CODEX_HOME: codexHome });
+}
+
+function getRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value as Record<string, unknown>;
 }
 
 /**
