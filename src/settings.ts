@@ -77,6 +77,31 @@ function getProviderSettingsPath(providerName: string): string {
   return path.join(CLAUDE_DIR, `ccsc-${slug}.settings.json`);
 }
 
+function blankEnv(env: Record<string, string>, key: string): boolean {
+  const value = env[key];
+  return typeof value !== 'string' || value.trim() === '';
+}
+
+/**
+ * An explicit fable pin wins. A legacy ANTHROPIC_REASONING_MODEL value fills
+ * the fable slot only when that pin is blank. The legacy keys stay in env.
+ */
+function promoteLegacyReasoningModel(env: Record<string, string>): void {
+  if (blankEnv(env, 'ANTHROPIC_DEFAULT_FABLE_MODEL')) {
+    const legacy = env.ANTHROPIC_REASONING_MODEL;
+    if (typeof legacy === 'string' && legacy.trim() !== '') {
+      env.ANTHROPIC_DEFAULT_FABLE_MODEL = legacy.trim();
+    }
+  }
+
+  if (blankEnv(env, 'ANTHROPIC_DEFAULT_FABLE_MODEL_NAME')) {
+    const legacyName = env.ANTHROPIC_REASONING_MODEL_NAME;
+    if (typeof legacyName === 'string' && legacyName.trim() !== '') {
+      env.ANTHROPIC_DEFAULT_FABLE_MODEL_NAME = legacyName.trim();
+    }
+  }
+}
+
 /**
  * Create provider-specific settings file by copying default settings
  * and merging provider env vars.
@@ -85,11 +110,16 @@ function getProviderSettingsPath(providerName: string): string {
  * 1. Copy ~/.claude/settings.json as base (preserves hooks, plugins, etc.)
  * 2. Clear env and model nodes (remove user's personal settings)
  * 3. Preserve existing provider-specific model if file already exists
- * 4. Initialize model env vars with empty values
+ * 4. Initialize current model env vars with empty values. Empty strings clear
+ *    the same keys inherited from the shell: Claude Code overlays settings env
+ *    onto process.env, and treats a blank model id as unset.
+ *    ANTHROPIC_REASONING_MODEL is not read by current Claude Code; the fable
+ *    alias is ANTHROPIC_DEFAULT_FABLE_MODEL.
  * 5. Merge common_config_claude.env from database
  * 6. Merge provider settings_config.env (highest priority)
- * 7. Merge provider's other config fields (teammateMode, model, etc.)
- * 8. If apiFormat is not 'anthropic', route ANTHROPIC_BASE_URL through cc-switch proxy
+ * 7. If fable is still empty, copy legacy ANTHROPIC_REASONING_MODEL into it
+ * 8. Merge provider's other config fields (teammateMode, model, etc.)
+ * 9. If apiFormat is not 'anthropic', route ANTHROPIC_BASE_URL through cc-switch proxy
  */
 export async function createProviderSettings(
   providerName: string,
@@ -128,13 +158,14 @@ export async function createProviderSettings(
     settings.model = preservedModel;
   }
 
-  // 4. Initialize model env vars with empty values
+  // 4. Initialize current model env vars with empty values.
+  // Claude Code 2.1.282 reads the fable alias from ANTHROPIC_DEFAULT_FABLE_MODEL.
   settings.env = {
     ANTHROPIC_DEFAULT_HAIKU_MODEL: '',
-    ANTHROPIC_DEFAULT_OPUS_MODEL: '',
     ANTHROPIC_DEFAULT_SONNET_MODEL: '',
+    ANTHROPIC_DEFAULT_OPUS_MODEL: '',
+    ANTHROPIC_DEFAULT_FABLE_MODEL: '',
     ANTHROPIC_MODEL: '',
-    ANTHROPIC_REASONING_MODEL: '',
   };
 
   // 5. Merge common_config_claude.env from database
@@ -152,7 +183,11 @@ export async function createProviderSettings(
     ...providerEnv,
   };
 
-  // 7. Merge provider's other config fields (teammateMode, model, etc.)
+  // 7. Keep an explicit fable pin. Copy legacy ANTHROPIC_REASONING_MODEL only
+  //    when fable is blank. Leave the legacy key in place.
+  promoteLegacyReasoningModel(settings.env);
+
+  // 8. Merge provider's other config fields (teammateMode, model, etc.)
   if (providerConfig) {
     for (const [key, value] of Object.entries(providerConfig)) {
       if (key !== 'env') {
@@ -161,7 +196,7 @@ export async function createProviderSettings(
     }
   }
 
-  // 8. Route through cc-switch proxy for non-Anthropic API formats
+  // 9. Route through cc-switch proxy for non-Anthropic API formats
   if (apiFormat && apiFormat !== 'anthropic' && proxyAddress) {
     settings.env.ANTHROPIC_BASE_URL = proxyAddress;
   }
