@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepchangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-10-07
+
+### Changed
+- Write `ANTHROPIC_DEFAULT_FABLE_MODEL` into generated Claude Code settings for the fable alias
+- When the fable model is unset, copy `ANTHROPIC_REASONING_MODEL` into the fable slot
+- Keep an existing `ANTHROPIC_REASONING_MODEL` value in the generated env
+
 ## [1.2.2] - 2026-06-22
 
 ### Added
